@@ -3,6 +3,8 @@ from Belt import Belt
 from Buffer import Buffer
 from Pallet import Pallet
 
+from collections import defaultdict
+
 class Agent():
     
     def __init__(self,belt:Belt,buffer:Buffer,pallet:Pallet,method="Q-Learning"):
@@ -11,6 +13,7 @@ class Agent():
         self.pallet = pallet
         self.method = method
         self.qvalues = {}
+        self.stateValues = defaultdict(0)
     
     def doAction(self):
         print("choose action and get reward")
