@@ -4,12 +4,15 @@ class Pallet():
     
     def __init__(self,capacity:int):
         self.capacity = capacity
-        self.products = [] # I will use it as a stack
+        self.products = capacity*[0] # considered zero for emty slots
         self.shipTime = -1 # means not shipped yet
+
+    def isReadyToShip(self):
+        return self.products.count(0) == 0
 
     def addProduct(self,product:Product):
         try:
-            self.products.append(product) # push
+            self.products[self.products.index(0)] = product # push
             return True
         except:
             raise Exception('Could not add!')

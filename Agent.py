@@ -5,6 +5,12 @@ from Pallet import Pallet
 
 from collections import defaultdict
 
+## action features function
+## normalization of the features
+## feeding the neural network
+## calculating the reward
+## choosing the best action
+
 class Agent():
     
     def __init__(self,belt:Belt,buffer:Buffer,pallet:Pallet,method="Q-Learning"):
@@ -12,11 +18,18 @@ class Agent():
         self.buffer = buffer
         self.pallet = pallet
         self.method = method
-        self.qvalues = {}
+        # self.qvalues = {}
         self.stateValues = defaultdict(0)
     
     def doAction(self):
-        print("choose action and get reward")
+        print("choose action and get reward!")
+    
+    def calculateReward(self,action):
+        print("calculate reward!")
+    
+    
+    def getStateFeatures(self):
+        
     
     def getStateFeatures(self):
         features = []
@@ -33,8 +46,8 @@ class Agent():
                     features.append(p.getArrivalTime())
                     features.append(p.getWeight())
                 else:
-                    features.append(-1) # it is not correct I think!
-                    features.append(-1) # same as top one; not correct!
+                    features.append(0) # it is not correct I think!
+                    features.append(0) # same as top one; not correct!
         
         products = self.pallet.getProducts()
         for p in products:
@@ -42,12 +55,13 @@ class Agent():
                     features.append(p.getArrivalTime())
                     features.append(p.getWeight())
             else:
-                features.append(-1) # it is not correct I think!
-                features.append(-1) # same as top one; not correct!
+                features.append(0) # it is not correct I think!
+                features.append(0) # same as top one; not correct!
         
         return features
                 
-
+    def getBestAction(self,stateFeatures,model):
+        print("should calculate best value based on given model and stateFeatures by examining different actions")
     
     def moveBufferToPallet(self,sourceX:int,sourceY:int):
         print("move!")
@@ -58,13 +72,8 @@ class Agent():
     def moveBeltToBuffer(self,destX:int,destY:int):
         print("move again again!!")
     
-    def generateState(self):
-        print ("Should generate statecode with a two-way function!")
+    def generateState(self,features:list): # tuple can be a key in dictionary
+        return tuple(features)
     
-    def interpretState(self,stateCode:int):
-        print ("Should generate statecode with a two-way function!")
-
-    def doAction(self,statecode:int):
-        print ("Should do action with a statecode!")
-    
-    ## to be continued ...
+    def interpretState(self,stateCode:tuple):
+        return list(stateCode)

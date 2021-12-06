@@ -17,6 +17,7 @@ actionTime = 0 # time took for the action
 globalTime = 0
 
 numberOfFrames = 1000
+
 deltaTStart = 0
 deltaTEnd = 5
 
