@@ -61,6 +61,10 @@ class Agent():
     def generateState(self):
         print ("Should generate statecode with a two-way function!")
     
-    ## to be continued ...
+    def interpretState(self,stateCode:int):
+        print ("Should generate statecode with a two-way function!")
 
+    def doAction(self,statecode:int):
+        print ("Should do action with a statecode!")
     
+    ## to be continued ...
