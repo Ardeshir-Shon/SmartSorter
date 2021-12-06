@@ -12,6 +12,40 @@ class Agent():
         self.method = method
         self.qvalues = {}
     
+    def doAction(self):
+        print("choose action and get reward")
+    
+    def getStateFeatures(self):
+        features = []
+        
+        features.append(self.belt.capacity)
+        features.append(self.belt.getTopArrivalTime())
+        features.append(self.belt.getTopWeight())
+        
+        for i in range(self.buffer.length):
+            for j in range(self.buffer.width):
+                p = self.buffer.getSlotProduct(i,j)
+                
+                if isinstance(p,Product):
+                    features.append(p.getArrivalTime())
+                    features.append(p.getWeight())
+                else:
+                    features.append(-1) # it is not correct I think!
+                    features.append(-1) # same as top one; not correct!
+        
+        products = self.pallet.getProducts()
+        for p in products:
+            if isinstance(p,Product):
+                    features.append(p.getArrivalTime())
+                    features.append(p.getWeight())
+            else:
+                features.append(-1) # it is not correct I think!
+                features.append(-1) # same as top one; not correct!
+        
+        return features
+                
+
+    
     def moveBufferToPallet(self,sourceX:int,sourceY:int):
         print("move!")
     
