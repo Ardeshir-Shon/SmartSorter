@@ -143,33 +143,6 @@ class Agent():
             action = np.random.randint(0,self.num_action)
         return action
 
-
-    def update(self):
-        # learn 100 times then the target network update
-        if self.learn_counter % self.Q_network_evaluation == 0:
-            self.target_net.load_state_dict(self.act_net.state_dict())
-        self.learn_counter += 1
-
-        sample_index = np.random.choice(self.capacity, self.batch_size)
-        batch_memory = self.memory[sample_index, :]
-        batch_state = torch.FloatTensor(batch_memory[:, :self.num_state_features])
-        #note that the action must be a int
-        batch_action = torch.LongTensor(batch_memory[:, self.num_state_features:self.num_state_features+1].astype(int))
-        batch_reward = torch.FloatTensor(batch_memory[:, self.num_state_features+1: self.num_state_features+2])
-        batch_next_state = torch.FloatTensor(batch_memory[:, -self.num_state_features:])
-
-        q_eval = self.act_net(batch_state).gather(1, batch_action)
-        q_next = self.target_net(batch_next_state).detach()
-        q_target = batch_reward + self.gamma*q_next.max(1)[0].view(self.batch_size, 1)
-
-        loss = self.loss(q_eval, q_target)
-        self.optimizer.zero_grad()
-        loss.backward()
-        self.optimizer.step()
-    
-    def doAction(self):
-        print("choose action and get reward!")
-
     def moveBufferToPallet(self,sourceX:int,sourceY:int):
         product = self.buffer.getSlotProduct(sourceX,sourceY)
         self.pallet.addProduct(product=product)
@@ -184,7 +157,7 @@ class Agent():
 
     def palletReward(self):
         print("reward for the shipped pallet")
-        
+
     
     def doWait(self):
         print("we just waited!")
@@ -213,7 +186,30 @@ class Agent():
             reward = 0
         return nextState,reward
             
-    
+    def update(self):
+        # learn 100 times then the target network update
+        if self.learn_counter % self.Q_network_evaluation == 0:
+            self.target_net.load_state_dict(self.act_net.state_dict())
+        self.learn_counter += 1
+
+        sample_index = np.random.choice(self.capacity, self.batch_size)
+        batch_memory = self.memory[sample_index, :]
+        batch_state = torch.FloatTensor(batch_memory[:, :self.num_state_features])
+        #note that the action must be a int
+        batch_action = torch.LongTensor(batch_memory[:, self.num_state_features:self.num_state_features+1].astype(int))
+        batch_reward = torch.FloatTensor(batch_memory[:, self.num_state_features+1: self.num_state_features+2])
+        batch_next_state = torch.FloatTensor(batch_memory[:, -self.num_state_features:])
+
+        q_eval = self.act_net(batch_state).gather(1, batch_action)
+        q_next = self.target_net(batch_next_state).detach()
+        q_target = batch_reward + self.gamma*q_next.max(1)[0].view(self.batch_size, 1)
+
+        loss = self.loss(q_eval, q_target)
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+
+
     def learn(self):
         for episode in range(self.num_episodes):
             state = self.getStateFeatures()
@@ -235,3 +231,6 @@ class Agent():
             
             self.episodeRewards.append(episodeReward/steps)
             self.episodeSteps.append(steps)
+    
+    def doAction(self):
+        print("choose action and get reward!")
