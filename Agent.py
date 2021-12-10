@@ -34,7 +34,7 @@ class Agent():
 
     def __init__(self,belt:Belt,buffer:Buffer,pallet:Pallet,capacity = 1024,
             learning_rate = 1e-3,learn_counter=0,memory_counter = 0,batch_size = 256,gamma = 0.995,
-            update_count = 0,num_episodes = 2000, epsilon = 0.95,Q_network_evaluation=100):
+            update_count = 0,num_episodes = 2000, epsilon = 0.95,Q_network_evaluation=100, time_penalty_coefficient = 1, weight_penalty_coefficient = 1):
         
         self.belt = belt
         self.buffer = buffer
@@ -44,6 +44,11 @@ class Agent():
         
         self.num_state_features = 1 + 2 * ( 1 + self.buffer.length*self.buffer.width + self.pallet.capacity)
         self.num_action = (1+1)*((self.buffer.length*self.buffer.width)+1)
+
+        self.time_penalty_coefficient = time_penalty_coefficient
+        self.weight_penalty_coefficient = weight_penalty_coefficient
+        self.historical_time_rewards = [None]*1000
+        self.historical_weight_rewards = [None]*1000
 
         self.capacity = capacity
         self.learning_rate = learning_rate
@@ -156,8 +161,23 @@ class Agent():
         self.buffer.moveToSlot(product=product,x=destX,y=destY)
 
     def palletReward(self):
-        print("reward for the shipped pallet")
+        r_time = 0
+        r_weight = 0
+        for i in range(self.pallet.capacity):
+            r_time += self.pallet.getShipTime() - self.pallet.products[i].getArrivalTime()
+        for i in range(self.pallet.capacity-1):
+            for j in range(i+1,self.pallet.capacity):
+                top_weights = self.pallet.products[j].getWeight()
+            r_weight += self.pallet.products[i].getWeight() - top_weights
+        
+        self.historical_time_rewards[self.num_episodes%1000] = r_time
+        self.historical_weight_rewards[self.num_episodes%1000] = r_weight
 
+        r_time_median = np.median(self.historical_time_rewards)
+        r_weight_median =np.median(self.historical_weight_rewards)
+        reward = self.time_penalty_coefficient*(r_time/r_time_median)+self.weight_penalty_coefficient*(r_weight/r_weight_median)
+        return reward
+        
     
     def doWait(self):
         print("we just waited!")
