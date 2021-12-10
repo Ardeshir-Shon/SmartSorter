@@ -26,8 +26,15 @@ class Belt():
         return True
  
     def getTopArrivalTime(self):
-        return self.products[0].getArrivalTime()
+        try:
+            return self.products[0].getArrivalTime()
+        except:
+            return 0
+
     
     def getTopWeight(self):
-        return self.products[0].getWeight()
+        try:
+            return self.products[0].getWeight()
+        except:
+            return 0
     

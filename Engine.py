@@ -6,17 +6,17 @@ from Pallet import Pallet
 
 import random
 
-agent = Agent()
 belt = Belt(1)
 buffer = Buffer(3,5)
 pallet = Pallet(8)
+agent = Agent(belt=belt,buffer=buffer,pallet=pallet)
 
 actionAmount = 5 # times to take any action
 actionTime = 0 # time took for the action
 
 globalTime = 0
 
-numberOfFrames = 1000
+numberOfFrames = 0
 
 deltaTStart = 0
 deltaTEnd = 5
