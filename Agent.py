@@ -2,12 +2,14 @@ from matplotlib.pyplot import get_current_fig_manager
 import random
 
 from numpy.core.fromnumeric import product
+from numpy.lib.function_base import copy
 
 from Product import Product
 from Belt import Belt
 from Buffer import Buffer
 from Pallet import Pallet
 from Net import Net
+from copy import copy as clone
 
 from collections import defaultdict
 
@@ -28,7 +30,6 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.distributions import Normal, Categorical
 from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
-from tensorboardX import SummaryWriter
 
 class Agent():
 
@@ -140,12 +141,17 @@ class Agent():
         self.memory_counter += 1
 
     def choose_action(self, state):
+        possiblesActions = self.getPossibleActions(state)
         state = torch.unsqueeze(torch.FloatTensor(state) ,0)
         if np.random.randn() <= self.epsilon:
             action_value = self.act_net.forward(state)
+            for i in range(len(possiblesActions)):
+                if possiblesActions[i]==0:
+                    action_value = -np.inf
             action = torch.argmax(action_value).data.numpy()
         else:
-            action = np.random.randint(0,self.num_action)
+            action = random.choice(np.argwhere(np.array(possiblesActions)==1))
+            # action = np.random.randint(0,self.num_action)
         return action
 
     def moveBufferToPallet(self,sourceX:int,sourceY:int):
@@ -163,12 +169,19 @@ class Agent():
     def palletReward(self):
         r_time = 0
         r_weight = 0
-        for i in range(self.pallet.capacity):
-            r_time += self.pallet.getShipTime() - self.pallet.products[i].getArrivalTime()
-        for i in range(self.pallet.capacity-1):
-            for j in range(i+1,self.pallet.capacity):
-                top_weights = self.pallet.products[j].getWeight()
-            r_weight += self.pallet.products[i].getWeight() - top_weights
+        
+        p = clone(self.pallet)
+        products = p.getProducts()
+        
+        self.pallet.shipThePallet()
+        
+        for i in range(p.capacity):
+            r_time += self.pallet.getShipTime() - products[i].getArrivalTime()
+        for i in range(p.capacity-1):
+            top_weights = 0
+            for j in range(i+1,p.capacity):
+                top_weights += products[j].getWeight()
+            r_weight += products[i].getWeight() - top_weights
         
         self.historical_time_rewards[self.num_episodes%1000] = r_time
         self.historical_weight_rewards[self.num_episodes%1000] = r_weight
@@ -178,10 +191,6 @@ class Agent():
         reward = self.time_penalty_coefficient*(r_time/r_time_median)+self.weight_penalty_coefficient*(r_weight/r_weight_median)
         return reward
         
-    
-    def doWait(self):
-        print("we just waited!")
-    
     def nextStateReward(self,action):
         bufferCapacity = self.buffer.length*self.buffer.width
         widthBuffer = self.buffer.width
@@ -202,7 +211,7 @@ class Agent():
             else:
                 reward = 0
         elif action == 2*bufferCapacity+1: # wait
-            nextState = self.doWait()
+            # nextState = self.doWait()
             reward = 0
         return nextState,reward
             
@@ -230,27 +239,23 @@ class Agent():
         self.optimizer.step()
 
 
-    def learn(self):
-        for episode in range(self.num_episodes):
-            state = self.getStateFeatures()
-            steps = random.randint(16,320)
-            print("number of steps are:",steps)
-            episodeReward = 0
-            for t in range(steps):
-                action = self.choose_action(state)
-                next_state, reward = self.nextStateReward(action)
-                self.store_trans(state, action, reward, next_state)
-                episodeReward += reward
-                if self.memory_counter >= self.capacity:
-                    self.update()
-                    if t == steps-1:
-                        print("episode {}, the reward is {}".format(episode, round(reward, 3)))
+    def learn(self,episode):
+        # for episode in range(self.num_episodes):
+        state = self.getStateFeatures()
+        steps = random.randint(16,320)
+        print("number of steps are:",steps)
+        episodeReward = 0
+        for t in range(steps):
+            action = self.choose_action(state)
+            next_state, reward = self.nextStateReward(action)
+            self.store_trans(state, action, reward, next_state)
+            episodeReward += reward
+            if self.memory_counter >= self.capacity:
+                self.update()
                 if t == steps-1:
-                    break
-                state = next_state
-            
-            self.episodeRewards.append(episodeReward/steps)
-            self.episodeSteps.append(steps)
-    
-    def doAction(self):
-        print("choose action and get reward!")
+                    print("episode {}, the reward is {}".format(episode, round(reward, 3)))
+            if t == steps-1:
+                break
+            state = next_state
+        self.episodeRewards.append(episodeReward/steps)
+        self.episodeSteps.append(steps)
