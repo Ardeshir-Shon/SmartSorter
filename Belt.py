@@ -21,9 +21,9 @@ class Belt():
     def isFull(self):
         if len(self.products) == self.capacity:
             return True
-        elif len(self.products) > self.capacity:
+        if len(self.products) > self.capacity:
             raise Exception('You are wrongly do simulation!')
-        return True
+        return False
  
     def getTopArrivalTime(self):
         try:

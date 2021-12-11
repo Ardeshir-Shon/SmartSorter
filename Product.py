@@ -5,6 +5,9 @@ class Product():
         self.rigidness = rigidness
         self.shipped = False
     
+    def __repr__(self) -> str:
+        return "Weight is:"+str(self.getWeight())+" & Arrival Time is: "+str(self.getArrivalTime())
+
     def setShipped(self):
         self.shipped = True
     def getWeight(self):

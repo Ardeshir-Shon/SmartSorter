@@ -33,13 +33,14 @@ from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 
 class Agent():
 
-    def __init__(self,belt:Belt,buffer:Buffer,pallet:Pallet,capacity = 1024,
-            learning_rate = 1e-3,learn_counter=0,memory_counter = 0,batch_size = 256,gamma = 0.995,
-            update_count = 0,num_episodes = 2000, epsilon = 0.95,Q_network_evaluation=100, time_penalty_coefficient = 1, weight_penalty_coefficient = 1):
+    def __init__(self,belt:Belt,buffer:Buffer,pallet:Pallet,globalTime,capacity = 1024,
+            learning_rate = 1e-3,learn_counter=0,memory_counter = 0,batch_size = 256,gamma = 0.95,
+            update_count = 0, epsilon = 0.95,Q_network_evaluation=100, time_penalty_coefficient = 1, weight_penalty_coefficient = 1):
         
         self.belt = belt
         self.buffer = buffer
         self.pallet = pallet
+        self.globalTime = globalTime
         self.stateValues = defaultdict(lambda:0)
         self.actions = ((self.belt.capacity+1)*(self.buffer.length*self.buffer.width)+1)*[0]
         
@@ -48,8 +49,8 @@ class Agent():
 
         self.time_penalty_coefficient = time_penalty_coefficient
         self.weight_penalty_coefficient = weight_penalty_coefficient
-        self.historical_time_rewards = [None]*1000
-        self.historical_weight_rewards = [None]*1000
+        self.historical_time_rewards = [np.nan]*1000
+        self.historical_weight_rewards = [np.nan]*1000
 
         self.capacity = capacity
         self.learning_rate = learning_rate
@@ -58,7 +59,7 @@ class Agent():
         self.batch_size = batch_size
         self.gamma = gamma
         self.update_count = update_count
-        self.num_episodes = num_episodes
+        self.done_episodes = 0
         self.epsilon = epsilon
         self.Q_network_evaluation = Q_network_evaluation
         self.episodeRewards = []
@@ -79,7 +80,9 @@ class Agent():
         features.append(self.belt.getTopWeight())
         
         for i in range(self.buffer.length):
+            # print("i ",i)
             for j in range(self.buffer.width):
+                # print("j ",j)
                 p = self.buffer.getSlotProduct(i,j)
                 
                 if isinstance(p,Product):
@@ -136,7 +139,7 @@ class Agent():
         if self.memory_counter % 500 ==0:
             print("The experience pool collects {} time experience".format(self.memory_counter))
         index = self.memory_counter % self.capacity
-        trans = np.hstack((state, [action], [reward], next_state))
+        trans = np.hstack((np.array(state), np.array(action), np.array(reward), np.array(next_state)))
         self.memory[index,] = trans
         self.memory_counter += 1
 
@@ -145,12 +148,13 @@ class Agent():
         state = torch.unsqueeze(torch.FloatTensor(state) ,0)
         if np.random.randn() <= self.epsilon:
             action_value = self.act_net.forward(state)
+            # print("action value:",action_value)
             for i in range(len(possiblesActions)):
                 if possiblesActions[i]==0:
-                    action_value = -np.inf
+                    action_value[0,i] = -np.inf
             action = torch.argmax(action_value).data.numpy()
         else:
-            action = random.choice(np.argwhere(np.array(possiblesActions)==1))
+            action = random.choice(np.argwhere(np.array(possiblesActions)==1))[0]
             # action = np.random.randint(0,self.num_action)
         return action
 
@@ -173,7 +177,7 @@ class Agent():
         p = clone(self.pallet)
         products = p.getProducts()
         
-        self.pallet.shipThePallet()
+        self.pallet.shipThePallet(globalTime=self.globalTime.time)
         
         for i in range(p.capacity):
             r_time += self.pallet.getShipTime() - products[i].getArrivalTime()
@@ -183,19 +187,23 @@ class Agent():
                 top_weights += products[j].getWeight()
             r_weight += products[i].getWeight() - top_weights
         
-        self.historical_time_rewards[self.num_episodes%1000] = r_time
-        self.historical_weight_rewards[self.num_episodes%1000] = r_weight
+        self.historical_time_rewards[self.done_episodes%1000] = r_time
+        self.historical_weight_rewards[self.done_episodes%1000] = r_weight
 
-        r_time_median = np.median(self.historical_time_rewards)
-        r_weight_median =np.median(self.historical_weight_rewards)
+        r_time_median = np.nanmedian(self.historical_time_rewards)
+        r_weight_median =np.nanmedian(self.historical_weight_rewards)
         reward = self.time_penalty_coefficient*(r_time/r_time_median)+self.weight_penalty_coefficient*(r_weight/r_weight_median)
+        
+        self.done_episodes += 1
+
         return reward
         
     def nextStateReward(self,action):
         bufferCapacity = self.buffer.length*self.buffer.width
         widthBuffer = self.buffer.width
         if action < bufferCapacity: # belt to buffer
-            nextState = self.moveBeltToBuffer(int(action/widthBuffer),action%widthBuffer)
+            self.moveBeltToBuffer(int(action/widthBuffer),action%widthBuffer)
+            nextState = self.getStateFeatures()
             reward = 0
         elif action == bufferCapacity: # belt to pallet
             self.moveBeltToPallet()
@@ -205,13 +213,15 @@ class Agent():
             else:
                 reward = 0
         elif action > bufferCapacity and action <= 2*bufferCapacity: # buffer to pallet
-            nextState = self.moveBufferToPallet(int((action-bufferCapacity-1)/widthBuffer),(action-bufferCapacity-1)%widthBuffer)
+            self.moveBufferToPallet(int((action-bufferCapacity-1)/widthBuffer),(action-bufferCapacity-1)%widthBuffer)
+            nextState = self.getStateFeatures()
             if self.pallet.isReadyToShip():
                 reward = self.palletReward()
             else:
                 reward = 0
         elif action == 2*bufferCapacity+1: # wait
             # nextState = self.doWait()
+            nextState = self.getStateFeatures()
             reward = 0
         return nextState,reward
             
