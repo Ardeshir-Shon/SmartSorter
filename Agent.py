@@ -8,7 +8,7 @@ from Product import Product
 from Belt import Belt
 from Buffer import Buffer
 from Pallet import Pallet
-from Net import Net
+from Net2 import Net
 from copy import copy as clone
 
 from collections import defaultdict

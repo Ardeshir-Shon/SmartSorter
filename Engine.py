@@ -24,7 +24,7 @@ actionTime = 0 # time took for the action
 
 globalTime = Time(0)
 
-numberOfEpisodes = 300
+numberOfEpisodes = 30
 
 belt = Belt(1)
 buffer = Buffer(3,5)
