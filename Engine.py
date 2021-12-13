@@ -5,6 +5,8 @@ from Buffer import Buffer
 from Pallet import Pallet
 
 import random
+from matplotlib import pyplot as plt
+import numpy as np
 
 import threading
 import time
@@ -22,7 +24,7 @@ actionTime = 0 # time took for the action
 
 globalTime = Time(0)
 
-numberOfFrames = 10000
+numberOfEpisodes = 300
 
 belt = Belt(1)
 buffer = Buffer(3,5)
@@ -38,9 +40,10 @@ weightEnd = 10
 
 exitFlag = 0
 
-episodes = 4000
 episode = 1
 
+with open("log.txt", "w") as log:
+   log.write(" ------------------ = New Trial =  -------------------\n")
 
 class Conveyor (threading.Thread):
    def __init__(self, threadID, name):
@@ -67,34 +70,29 @@ factory = Conveyor(1, "Belt-Thread")
 factory.start()
 
 
-while globalTime.time <= numberOfFrames:
+while episode <= numberOfEpisodes:
    time.sleep(0.1)
-   if episode >= episodes:
+   
+   if episode >= numberOfEpisodes:
       break
+   
    ### agent do action here (if needed!)
-   if actionTime % actionAmount == 0: # should take an action (also wait is action)
-      actionTime = 0 # reseting action time
-      agent.learn(episode)
-      episode += 1
+   agent.learn(episode)
+   episode += 1
    ## tille here
 
    ### update graphic canvas here
-   print("Start**************")
-   print("Belt:")
-   print(len(belt.products),belt.products)
-   print("-------------")
-   print("Buffer:")
-   print(buffer.slots)
-   print("-------------")
-   print("Pallet:")
-   print(pallet.products)
-   print("End***************")
    ## till here 
 
-   ### update time
-   globalTime.increaseTime()
-   actionTime += 1
-
 exitFlag = True
+
+
+average_rewards  = np.array(agent.episodeRewards)/np.array(agent.episodeSteps)
+plt.plot(average_rewards, "-o", label="Average Reward")
+plt.ylabel("Average Reward")
+plt.xlabel("Episodes")
+plt.legend('Average Reward')
+plt.savefig("rewards.png", dpi=300)
+print("Average Reward: ", len(average_rewards))
 
 

@@ -1,3 +1,5 @@
+*.png
+*.txt
 .DS_Store
 .huskyrc.json
 out

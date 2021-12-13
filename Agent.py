@@ -1,4 +1,4 @@
-from matplotlib.pyplot import get_current_fig_manager
+from matplotlib.pyplot import get_current_fig_manager, step
 import random
 
 from numpy.core.fromnumeric import product
@@ -35,7 +35,7 @@ class Agent():
 
     def __init__(self,belt:Belt,buffer:Buffer,pallet:Pallet,globalTime,capacity = 1024,
             learning_rate = 1e-3,learn_counter=0,memory_counter = 0,batch_size = 256,gamma = 0.95,
-            update_count = 0, epsilon = 0.95,Q_network_evaluation=100, time_penalty_coefficient = 1, weight_penalty_coefficient = 1):
+            update_count = 0, epsilon = 0.95,Q_network_evaluation=100, time_penalty_coefficient = 1, weight_penalty_coefficient = 1, actionAmount = 2):
         
         self.belt = belt
         self.buffer = buffer
@@ -43,6 +43,7 @@ class Agent():
         self.globalTime = globalTime
         self.stateValues = defaultdict(lambda:0)
         self.actions = ((self.belt.capacity+1)*(self.buffer.length*self.buffer.width)+1)*[0]
+        self.actionAmount = actionAmount
         
         self.num_state_features = 1 + 2 * ( 1 + self.buffer.length*self.buffer.width + self.pallet.capacity)
         self.num_action = (1+1)*((self.buffer.length*self.buffer.width)+1)
@@ -252,20 +253,39 @@ class Agent():
     def learn(self,episode):
         # for episode in range(self.num_episodes):
         state = self.getStateFeatures()
-        steps = random.randint(16,320)
-        print("number of steps are:",steps)
+        epsiodeDuration = random.randint(32,128)
+        print("number of steps are:",epsiodeDuration)
         episodeReward = 0
-        for t in range(steps):
-            action = self.choose_action(state)
-            next_state, reward = self.nextStateReward(action)
-            self.store_trans(state, action, reward, next_state)
-            episodeReward += reward
-            if self.memory_counter >= self.capacity:
-                self.update()
-                if t == steps-1:
-                    print("episode {}, the reward is {}".format(episode, round(reward, 3)))
-            if t == steps-1:
-                break
-            state = next_state
-        self.episodeRewards.append(episodeReward/steps)
+        steps = 0
+        myfile = open("log.txt", "a")
+        myfile.write("------------ episode: "+str(episode)+"\n")
+        for t in range(epsiodeDuration):
+            time.sleep(0.05)
+            myfile.write("Current time: "+str(self.globalTime.time)+"\n")
+            if self.globalTime.time % self.actionAmount == 0:
+                steps += 1
+                action = self.choose_action(state)
+                next_state, reward = self.nextStateReward(action)
+                self.store_trans(state, action, reward, next_state)
+                episodeReward += reward
+                string = "***NEW ACTION:::\n"+str(steps)+"/"+str(int(epsiodeDuration/self.actionAmount))
+                string += "\nTime: " + str(self.globalTime.time) 
+                string += "\nBelt: " + str(self.belt.products) 
+                string += "\nBuffer: " + str(self.buffer.slots) 
+                string += "\nPallet: " + str(self.pallet.products) + "\n"
+                myfile.write(string)
+                myfile.flush()
+                print(string)
+
+                if self.memory_counter >= self.capacity:
+                    self.update()
+                    if t == epsiodeDuration-1:
+                        print("episode {}, the reward is {}".format(episode, round(reward, 3)))
+                if t == epsiodeDuration-1:
+                    break
+                state = next_state
+            self.globalTime.increaseTime()
+        myfile.write("@@@@@@@@@@ episode reward ########: "+str(episodeReward/steps)+"\n")
+        self.episodeRewards.append(episodeReward)
         self.episodeSteps.append(steps)
+        myfile.close()
