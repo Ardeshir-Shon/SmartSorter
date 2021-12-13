@@ -77,7 +77,7 @@ class Agent():
         
         features.append(self.belt.capacity)
         
-        features.append(self.belt.getTopArrivalTime())
+        features.append(self.belt.getTopArrivalTime()-self.globalTime.time)
         features.append(self.belt.getTopWeight())
         
         for i in range(self.buffer.length):
@@ -87,7 +87,7 @@ class Agent():
                 p = self.buffer.getSlotProduct(i,j)
                 
                 if isinstance(p,Product):
-                    features.append(p.getArrivalTime())
+                    features.append(p.getArrivalTime()-self.globalTime.time)
                     features.append(p.getWeight())
                 else:
                     features.append(0)
@@ -96,7 +96,7 @@ class Agent():
         products = self.pallet.getProducts()
         for p in products:
             if isinstance(p,Product):
-                    features.append(p.getArrivalTime())
+                    features.append(p.getArrivalTime()-self.globalTime.time)
                     features.append(p.getWeight())
             else:
                 features.append(0)
