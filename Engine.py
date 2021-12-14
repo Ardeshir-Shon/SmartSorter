@@ -21,12 +21,9 @@ class Time():
    def increaseTime(self):
       self.time += 1
 
-actionAmount = 5 # times to take any action
-actionTime = 0 # time took for the action
-
 globalTime = Time(0)
 
-numberOfEpisodes = 1000
+numberOfEpisodes = 10000
 
 belt = Belt(1)
 buffer = Buffer(2,3)
@@ -63,18 +60,18 @@ def feedProduct(threadName, delay):
          return
       time.sleep(delay)
       if  not belt.isFull():
-         # print("9832749824729847298479832479249837498274")
          belt.addProduct(Product(arrivalTime = globalTime.time+random.randint(deltaTStart,deltaTEnd), weight = random.randint(weightStart,weightEnd)))
-      # print(threadName," time is:" ,time.ctime(time.time()))
 
 factory = Conveyor(1, "Belt-Thread")
 
 factory.start()
 
+with open("log.csv", "a") as log:
+   log.write("Episode,Episode Reward,Episode Steps\n")
 
 while episode <= numberOfEpisodes:
    print("-------------")
-   time.sleep(0.1)
+   time.sleep(0.05)
    
    if episode >= numberOfEpisodes:
       break

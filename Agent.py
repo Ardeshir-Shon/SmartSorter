@@ -35,7 +35,7 @@ class Agent():
 
     def __init__(self,belt:Belt,buffer:Buffer,pallet:Pallet,globalTime,capacity = 1024,
             learning_rate = 1e-3,learn_counter=0,memory_counter = 0,batch_size = 256,gamma = 0.95,
-            update_count = 0, epsilon = 0.95,Q_network_evaluation=100, time_penalty_coefficient = 1, weight_penalty_coefficient = 1, actionAmount = 2):
+            update_count = 0, epsilon = 0.95,Q_network_evaluation=100, time_penalty_coefficient = 0.2, weight_penalty_coefficient = 1, actionAmount = 2):
         
         self.belt = belt
         self.buffer = buffer
@@ -186,7 +186,7 @@ class Agent():
         
         p = clone(self.pallet)
         products = p.getProducts()
-        print(products)
+        #print(products)
         self.pallet.shipThePallet(globalTime=self.globalTime.time)
         
         for i in range(p.capacity):
@@ -205,7 +205,7 @@ class Agent():
         reward = self.time_penalty_coefficient*(r_time/abs(r_time_median))+self.weight_penalty_coefficient*(r_weight/abs(r_weight_median))
         
         self.done_episodes += 1
-        print("Corresponding time reward: ",r_time, "    ", "Corresponding weight reward: ",r_weight)
+        #print("Corresponding time reward: ",r_time, "    ", "Corresponding weight reward: ",r_weight)
         
         return reward
         
@@ -231,11 +231,15 @@ class Agent():
             else:
                 reward = 0
         elif action == 2*bufferCapacity+1: # wait
-            # nextState = self.doWait()
+            nextState = self.doWait()
             nextState = self.getStateFeatures()
             reward = 0
         return nextState,reward
             
+    def doWait(self):
+        with open("log.txt","a") as log:
+            log.write("------- !WAIT! -------")
+    
     def update(self):
         # learn 100 times then the target network update
         if self.learn_counter % self.Q_network_evaluation == 0:
@@ -268,19 +272,17 @@ class Agent():
         episodeReward = 0
         steps = 0
         myfile = open("log.txt", "a")
-        myfile.write("------------ episode: "+str(episode)+"\n")
+        myfile.write("------------ episode: "+str(episode)+" ------------ \n")
         for t in range(epsiodeDuration):
-            time.sleep(0.05)
-            myfile.write("Current time: "+str(self.globalTime.time)+"\n")
+            time.sleep(0.02)
             if self.globalTime.time % self.actionAmount == 0:
+                myfile.write("New Action "+ str(steps)+"/"+str(int(epsiodeDuration/self.actionAmount)) +" at time: "+str(self.globalTime.time)+"\n")
                 steps += 1
                 action = self.choose_action(state)
                 next_state, reward = self.nextStateReward(action)
                 self.store_trans(state, action, reward, next_state)
                 episodeReward += reward
-                string = "***NEW ACTION:::\n"+str(steps)+"/"+str(int(epsiodeDuration/self.actionAmount))
-                string += "\nTime: " + str(self.globalTime.time) 
-                string += "\nBelt: " + str(self.belt.products) 
+                string = "\nBelt: " + str(self.belt.products) 
                 string += "\nBuffer: " + str(self.buffer.slots) 
                 string += "\nPallet: " + str(self.pallet.products) + "\n"
                 myfile.write(string)
@@ -295,7 +297,9 @@ class Agent():
                     break
                 state = next_state
             self.globalTime.increaseTime()
-        myfile.write("@@@@@@@@@@ episode reward ########: "+str(episodeReward/steps)+"\n")
+        myfile.write("@@@@@@@@@@ Episode Reward : "+str(episodeReward)+"\n")
+        myfile.write("@@@@@@@@@@ Episode Steps : "+str(steps)+"\n")
+        myfile.write("@@@@@@@@@@ Normalized Episode Reward : "+str(episodeReward/steps)+"\n")
         self.episodeRewards.append(episodeReward)
         self.episodeSteps.append(steps)
         myfile.close()
