@@ -10,6 +10,7 @@ import numpy as np
 
 import threading
 import time
+import csv
 
 
 class Time():
@@ -27,8 +28,8 @@ globalTime = Time(0)
 numberOfEpisodes = 1000
 
 belt = Belt(1)
-buffer = Buffer(3,5)
-pallet = Pallet(8)
+buffer = Buffer(2,3)
+pallet = Pallet(5)
 agent = Agent(belt=belt,buffer=buffer,pallet=pallet, globalTime = globalTime)
 
 
@@ -81,8 +82,11 @@ while episode <= numberOfEpisodes:
    agent.learn(episode)
    episode += 1
    print("Episode: ",episode)
-   print("Total reward: ",np.array(agent.episodeRewards[-1])/np.array(agent.episodeSteps[-1]))
+   print("Total reward: ", agent.episodeRewards[-1]/agent.episodeSteps[-1])
    print("----------------------")
+   with open("log.csv", "a") as log:
+      writer = csv.writer(log, delimiter=',' , lineterminator='\n')
+      writer.writerow([episode, agent.episodeRewards[-1], agent.episodeSteps[-1]])
    belt.empty()
    buffer.empty()
    pallet.empty()

@@ -256,7 +256,7 @@ class Agent():
     def learn(self,episode):
         # for episode in range(self.num_episodes):
         state = self.getStateFeatures()
-        epsiodeDuration = random.randint((self.buffer.width*self.buffer.length+self.pallet.capacity+self.belt.capacity)*self.actionAmount+128,512)
+        epsiodeDuration = random.randint((self.buffer.width*self.buffer.length+self.pallet.capacity+self.belt.capacity)*self.actionAmount+64,256)
         # print("number of steps are:",epsiodeDuration)
         episodeReward = 0
         steps = 0
@@ -292,3 +292,4 @@ class Agent():
         self.episodeRewards.append(episodeReward)
         self.episodeSteps.append(steps)
         myfile.close()
+        
