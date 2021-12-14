@@ -146,6 +146,7 @@ class Agent():
 
     def choose_action(self, state):
         possiblesActions = self.getPossibleActions(state)
+
         state = torch.unsqueeze(torch.FloatTensor(state) ,0)
         if np.random.randn() <= self.epsilon:
             action_value = self.act_net.forward(state)
@@ -161,6 +162,7 @@ class Agent():
 
     def moveBufferToPallet(self,sourceX:int,sourceY:int):
         product = self.buffer.getSlotProduct(sourceX,sourceY)
+        self.buffer.moveFromSlot(sourceX,sourceY)
         self.pallet.addProduct(product=product)
     
     def moveBeltToPallet(self):
