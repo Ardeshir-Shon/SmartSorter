@@ -177,7 +177,7 @@ class Agent():
         
         p = clone(self.pallet)
         products = p.getProducts()
-        
+        print(products)
         self.pallet.shipThePallet(globalTime=self.globalTime.time)
         
         for i in range(p.capacity):
@@ -196,7 +196,8 @@ class Agent():
         reward = self.time_penalty_coefficient*(r_time/r_time_median)+self.weight_penalty_coefficient*(r_weight/r_weight_median)
         
         self.done_episodes += 1
-
+        print("Corresponding reward: ",reward)
+        
         return reward
         
     def nextStateReward(self,action):
@@ -254,7 +255,7 @@ class Agent():
         # for episode in range(self.num_episodes):
         state = self.getStateFeatures()
         epsiodeDuration = random.randint(32,128)
-        print("number of steps are:",epsiodeDuration)
+        # print("number of steps are:",epsiodeDuration)
         episodeReward = 0
         steps = 0
         myfile = open("log.txt", "a")
@@ -275,12 +276,12 @@ class Agent():
                 string += "\nPallet: " + str(self.pallet.products) + "\n"
                 myfile.write(string)
                 myfile.flush()
-                print(string)
+                # print(string)
 
                 if self.memory_counter >= self.capacity:
                     self.update()
-                    if t == epsiodeDuration-1:
-                        print("episode {}, the reward is {}".format(episode, round(reward, 3)))
+                    # if t == epsiodeDuration-1:
+                    #     print("episode {}, the reward is {}".format(episode, round(reward, 3)))
                 if t == epsiodeDuration-1:
                     break
                 state = next_state

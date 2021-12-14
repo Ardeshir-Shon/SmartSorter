@@ -31,3 +31,5 @@ class Buffer():
             raise Exception("X and Y are not fit to the buffer dimensions! (Or are negative! :/ )")
         return self.slots[x][y]
     
+    def empty(self):
+        self.slots = [ [0]*self.width for i in range(self.length) ] 

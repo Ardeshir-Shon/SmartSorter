@@ -36,5 +36,8 @@ class Belt():
         try:
             return self.products[0].getWeight()
         except:
-            return 0
+            return 
+
+    def empty(self):
+        self.products = []
     

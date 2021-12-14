@@ -16,7 +16,6 @@ class Pallet():
 
     def addProduct(self,product:Product):
         # try:
-        print(self.products)
         self.products[self.products.index(0)] = product # push
         return True
         # except:
@@ -33,3 +32,7 @@ class Pallet():
     
     def getProducts(self):
         return self.products
+    
+    def empty(self):
+        self.products = self.capacity*[0] # considered zero for emty slots
+        self.shipTime = -1 # means not shipped yet

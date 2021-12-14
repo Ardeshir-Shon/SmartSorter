@@ -24,7 +24,7 @@ actionTime = 0 # time took for the action
 
 globalTime = Time(0)
 
-numberOfEpisodes = 30
+numberOfEpisodes = 300
 
 belt = Belt(1)
 buffer = Buffer(3,5)
@@ -71,6 +71,7 @@ factory.start()
 
 
 while episode <= numberOfEpisodes:
+   print("-------------")
    time.sleep(0.1)
    
    if episode >= numberOfEpisodes:
@@ -79,6 +80,12 @@ while episode <= numberOfEpisodes:
    ### agent do action here (if needed!)
    agent.learn(episode)
    episode += 1
+   print("Episode: ",episode)
+   print("Total reward: ",np.array(agent.episodeRewards[-1])/np.array(agent.episodeSteps[-1]))
+   print("----------------------")
+   belt.empty()
+   buffer.empty()
+   pallet.empty()
    ## tille here
 
    ### update graphic canvas here
@@ -93,6 +100,6 @@ plt.ylabel("Average Reward")
 plt.xlabel("Episodes")
 plt.legend('Average Reward')
 plt.savefig("rewards.png", dpi=300)
-print("Average Reward: ", len(average_rewards))
+# print("Average Reward: ", len(average_rewards))
 
 
