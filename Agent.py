@@ -205,10 +205,12 @@ class Agent():
 
         r_time_median = np.nanmedian(self.historical_time_rewards)
         r_weight_median =np.nanmedian(self.historical_weight_rewards)
+        print('r_time:', r_time, 'normalized:', r_time/abs(r_time_median))
+        print('r_weight: ', r_weight, 'normalized:', r_weight/abs(r_weight_median))
+        print('r_time_median:', r_time_median, 'r_weight_median:', r_weight_median)
         reward = self.time_penalty_coefficient*(r_time/abs(r_time_median))+self.weight_penalty_coefficient*(r_weight/abs(r_weight_median))
         
         self.done_episodes += 1
-        #print("Corresponding time reward: ",r_time, "    ", "Corresponding weight reward: ",r_weight)
         
         return reward
         
