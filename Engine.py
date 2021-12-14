@@ -33,7 +33,7 @@ agent = Agent(belt=belt,buffer=buffer,pallet=pallet, globalTime = globalTime)
 
 
 deltaTStart = 0
-deltaTEnd = 5
+deltaTEnd = 2
 
 weightStart = 1
 weightEnd = 10

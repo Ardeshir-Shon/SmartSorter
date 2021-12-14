@@ -161,7 +161,7 @@ class Agent():
         return action
 
     def moveBufferToPallet(self,sourceX:int,sourceY:int):
-        product = self.buffer.getSlotProduct(sourceX,sourceY)
+        product = clone(self.buffer.getSlotProduct(sourceX,sourceY))
         self.buffer.moveFromSlot(sourceX,sourceY)
         self.pallet.addProduct(product=product)
     
@@ -198,7 +198,7 @@ class Agent():
         reward = self.time_penalty_coefficient*(r_time/r_time_median)+self.weight_penalty_coefficient*(r_weight/r_weight_median)
         
         self.done_episodes += 1
-        print("Corresponding reward: ",reward)
+        print("Corresponding time reward: ",r_time, "    ", "Corresponding weight reward: ",r_weight)
         
         return reward
         
@@ -256,7 +256,7 @@ class Agent():
     def learn(self,episode):
         # for episode in range(self.num_episodes):
         state = self.getStateFeatures()
-        epsiodeDuration = random.randint(32,128)
+        epsiodeDuration = random.randint((self.buffer.width*self.buffer.length+self.pallet.capacity+self.belt.capacity)*self.actionAmount+128,512)
         # print("number of steps are:",epsiodeDuration)
         episodeReward = 0
         steps = 0
