@@ -34,8 +34,8 @@ from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 class Agent():
 
     def __init__(self,belt:Belt,buffer:Buffer,pallet:Pallet,globalTime,capacity = 1024,
-            learning_rate = 1e-3,learn_counter=0,memory_counter = 0,batch_size = 256,gamma = 0.95,
-            update_count = 0, epsilon = 0.95,Q_network_evaluation=100, time_penalty_coefficient = 0.2, weight_penalty_coefficient = 1, actionAmount = 2):
+            learning_rate = 1e-3,learn_counter=0,memory_counter = 0,batch_size = 256,gamma = 0.8,
+            update_count = 0, epsilon = 0.7,Q_network_evaluation=100, time_penalty_coefficient = 0.2, weight_penalty_coefficient = 1, actionAmount = 2):
         
         self.belt = belt
         self.buffer = buffer
@@ -45,7 +45,7 @@ class Agent():
         self.actions = ((self.belt.capacity+1)*(self.buffer.length*self.buffer.width)+1)*[0]
         self.actionAmount = actionAmount
         
-        self.num_state_features = 1 + 2 * ( 1 + self.buffer.length*self.buffer.width + self.pallet.capacity)
+        self.num_state_features = 2 * ( 1 + self.buffer.length*self.buffer.width + self.pallet.capacity)
         self.num_action = (1+1)*((self.buffer.length*self.buffer.width)+1)
 
         self.time_penalty_coefficient = time_penalty_coefficient
@@ -82,15 +82,22 @@ class Agent():
     def getStateFeatures(self):
         features = []
         
-        features.append(self.belt.capacity)
+        products = self.belt.getProducts()
         
-        features.append(self.belt.getTopArrivalTime()-self.globalTime.time)
-        features.append(self.belt.getTopWeight())
-        
-        for i in range(self.buffer.length):
-            # print("i ",i)
-            for j in range(self.buffer.width):
-                # print("j ",j)
+        if len(products) != 0:
+            for p in products:
+                if isinstance(p,Product):
+                        features.append(p.getArrivalTime()-self.globalTime.time)
+                        features.append(p.getWeight())
+                else:
+                    features.append(0)
+                    features.append(0)
+        else:
+            features.append(0)
+            features.append(0)
+
+        for i in range(self.buffer.width):
+            for j in range(self.buffer.length):
                 p = self.buffer.getSlotProduct(i,j)
                 
                 if isinstance(p,Product):
@@ -113,34 +120,31 @@ class Agent():
     
     def getPossibleActions(self,state):
         possibleActions = []
-        
-        # check feasible actions from belt to buffer or pallet
-        if state[2] != 0: # belt is not empty
-            for i in range(self.buffer.length):
-                for j in range(self.buffer.width):
-                    be = (i*self.buffer.length+j)+1
-                    if state[3+ 2*(be-1) + 1] != 0: # buffer at i and j is not empty
-                        possibleActions.append(0)
-                    else:
-                        possibleActions.append(1)
-            possibleActions.append(1) # from belt to pallet directly
-        
-        else: # there is no possible move from belt to the buffer or pallet
-            for i in range(self.buffer.length*self.buffer.width+1):
-                possibleActions.append(0) # belt is empty
-        
-        # check feasible actions from buffer to pallet
-        for i in range(self.buffer.length):
-            for j in range(self.buffer.width):
-                be = (i*self.buffer.length+j)+1
-                if state[3+ 2*(be-1) + 1] != 0: # buffer at i and j is not empty
-                    possibleActions.append(1) # can move to the pallet
+        if state[1] != 0: # if belt is not empty
+            i = 3
+            while i < 2+ 2*self.buffer.length*self.buffer.width:
+                if state[i] == 0: # buffer slot is not empty
+                    possibleActions.append(1)
                 else:
                     possibleActions.append(0)
-
-        # add wait action
-        possibleActions.append(1)
-
+                i += 2
+            possibleActions.append(1)
+        else:
+            i = 3
+            while i < 2+ 2*self.buffer.length*self.buffer.width:
+                possibleActions.append(0)
+                i += 2
+            possibleActions.append(0)
+        
+        i=3
+        while i < 2+ 2*self.buffer.length*self.buffer.width:
+            if state[i] != 0: # If not empty
+                possibleActions.append(1) # Put in pallet
+            else:
+                possibleActions.append(0) #cannot put in the pallet
+            i += 2
+        possibleActions.append(1) # for wait
+        
         return possibleActions
     
     def store_trans(self, state, action, reward, next_state):
@@ -153,7 +157,6 @@ class Agent():
 
     def choose_action(self, state):
         possiblesActions = self.getPossibleActions(state)
-
         state = torch.unsqueeze(torch.FloatTensor(state) ,0)
         if np.random.randn() <= self.epsilon:
             action_value = self.act_net.forward(state)
@@ -211,7 +214,7 @@ class Agent():
         
     def nextStateReward(self,action):
         bufferCapacity = self.buffer.length*self.buffer.width
-        widthBuffer = self.buffer.width
+        widthBuffer = self.buffer.length
         if action < bufferCapacity: # belt to buffer
             self.moveBeltToBuffer(int(action/widthBuffer),action%widthBuffer)
             nextState = self.getStateFeatures()
@@ -231,14 +234,10 @@ class Agent():
             else:
                 reward = 0
         elif action == 2*bufferCapacity+1: # wait
-            nextState = self.doWait()
             nextState = self.getStateFeatures()
             reward = 0
         return nextState,reward
             
-    def doWait(self):
-        with open("log.txt","a") as log:
-            log.write("------- !WAIT! -------")
     
     def update(self):
         # learn 100 times then the target network update
@@ -267,27 +266,47 @@ class Agent():
     def learn(self,episode):
         # for episode in range(self.num_episodes):
         state = self.getStateFeatures()
+        
+        self.epsilon = self.epsilon * 1.0001 if self.epsilon < 1 else 1
+    
+        bufferCapacity = self.buffer.length*self.buffer.width # temp for logging
         epsiodeDuration = random.randint((self.buffer.width*self.buffer.length+self.pallet.capacity+self.belt.capacity)*self.actionAmount+64,256)
         # print("number of steps are:",epsiodeDuration)
         episodeReward = 0
         steps = 0
+        
         myfile = open("log.txt", "a")
-        myfile.write("------------ episode: "+str(episode)+" ------------ \n")
+        
+        myfile.write("\n------------ episode: "+str(episode)+ " Epsilon: " + str(self.epsilon) +" ------------ \n")
+        
         for t in range(epsiodeDuration):
             time.sleep(0.02)
+            
             if self.globalTime.time % self.actionAmount == 0:
+                myfile.write("\nState: "+str(state)+"\n")
+                myfile.write("Possible Actions: "+str(self.getPossibleActions(state))+"\n")
                 myfile.write("New Action "+ str(steps)+"/"+str(int(epsiodeDuration/self.actionAmount)) +" at time: "+str(self.globalTime.time)+"\n")
                 steps += 1
                 action = self.choose_action(state)
                 next_state, reward = self.nextStateReward(action)
                 self.store_trans(state, action, reward, next_state)
                 episodeReward += reward
-                string = "\nBelt: " + str(self.belt.products) 
-                string += "\nBuffer: " + str(self.buffer.slots) 
-                string += "\nPallet: " + str(self.pallet.products) + "\n"
-                myfile.write(string)
+                
+                if action < bufferCapacity:
+                    selectedAction = 'Belt to Buffer'
+                elif action == bufferCapacity:
+                    selectedAction = 'Belt to Pallet'
+                elif action > bufferCapacity and action <= 2*bufferCapacity:
+                    selectedAction = 'Buffer to Pallet'
+                elif action == 2*bufferCapacity+1:
+                    selectedAction = 'Wait'
+
+                myfile.write("Selected Action: "+str(selectedAction)+" : "+str(action)+"\n")
+                myfile.write("Action Reward: "+str(reward)+"\n")
+                myfile.write("Belt: "+str(self.belt.products)+"\n")
+                myfile.write("Buffer: "+str(self.buffer.slots)+"\n")
+                myfile.write("Pallet: "+str(self.pallet.products)+"\n")
                 myfile.flush()
-                # print(string)
 
                 if self.memory_counter >= self.capacity:
                     self.update()
@@ -297,7 +316,7 @@ class Agent():
                     break
                 state = next_state
             self.globalTime.increaseTime()
-        myfile.write("@@@@@@@@@@ Episode Reward : "+str(episodeReward)+"\n")
+        myfile.write("\n@@@@@@@@@@ Episode Reward : "+str(episodeReward)+"\n")
         myfile.write("@@@@@@@@@@ Episode Steps : "+str(steps)+"\n")
         myfile.write("@@@@@@@@@@ Normalized Episode Reward : "+str(episodeReward/steps)+"\n")
         self.episodeRewards.append(episodeReward)

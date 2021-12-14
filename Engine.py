@@ -51,7 +51,7 @@ class Conveyor (threading.Thread):
       self.name = name
    def run(self):
       print("Conveyor belt started ... " , self.name)
-      feedProduct(self.name, 0.3)
+      feedProduct(self.name, 0.05)
       print("Conveyor belt stopped ... " , self.name)
 
 def feedProduct(threadName, delay):
@@ -85,7 +85,7 @@ while episode <= numberOfEpisodes:
    print("----------------------")
    with open("log.csv", "a") as log:
       writer = csv.writer(log, delimiter=',' , lineterminator='\n')
-      writer.writerow([episode, agent.episodeRewards[-1], agent.episodeSteps[-1]])
+      writer.writerow([episode, agent.episodeRewards[-1], agent.episodeSteps[-1], agent.episodeRewards[-1]/agent.episodeSteps[-1], agent.epsilon])
    belt.empty()
    buffer.empty()
    pallet.empty()
