@@ -1,3 +1,4 @@
+import torch
 from Agent import Agent
 from Product import Product
 from Belt import Belt
@@ -80,6 +81,7 @@ while episode <= numberOfEpisodes:
    
    ### agent do action here (if needed!)
    agent.learn(episode)
+   torch.save(agent.act_net.state_dict(), "./act_net.pth")
    episode += 1
    print("Episode: ",episode)
    print("Total reward: ", agent.episodeRewards[-1]/agent.episodeSteps[-1])

@@ -67,7 +67,11 @@ class Agent():
         self.episodeSteps = []
         self.memory = np.zeros((self.capacity, self.num_state_features *2 +2))
 
-        self.target_net, self.act_net = Net(self.num_state_features,self.num_action), Net(self.num_state_features,self.num_action)
+        if os.path.isfile("./act_net.pth"):
+            self.act_net.load_state_dict(torch.load("./act_net.pth"))
+            self.target_net.load_state_dict(torch.load("./act_net.pth"))
+        else:
+            self.target_net, self.act_net = Net(self.num_state_features,self.num_action), Net(self.num_state_features,self.num_action)
         # self.memory = [None]*self.capacity
         self.optimizer = optim.Adam(self.act_net.parameters(), self.learning_rate)
         self.loss = nn.MSELoss()
