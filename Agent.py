@@ -68,9 +68,12 @@ class Agent():
         self.memory = np.zeros((self.capacity, self.num_state_features *2 +2))
 
         if os.path.isfile("./act_net.pth"):
+            print("loaded from existing models ...")
+            self.target_net, self.act_net = Net(self.num_state_features,self.num_action), Net(self.num_state_features,self.num_action)
             self.act_net.load_state_dict(torch.load("./act_net.pth"))
             self.target_net.load_state_dict(torch.load("./act_net.pth"))
         else:
+            print("start from random weights ...")
             self.target_net, self.act_net = Net(self.num_state_features,self.num_action), Net(self.num_state_features,self.num_action)
         # self.memory = [None]*self.capacity
         self.optimizer = optim.Adam(self.act_net.parameters(), self.learning_rate)
@@ -199,7 +202,7 @@ class Agent():
 
         r_time_median = np.nanmedian(self.historical_time_rewards)
         r_weight_median =np.nanmedian(self.historical_weight_rewards)
-        reward = self.time_penalty_coefficient*(r_time/r_time_median)+self.weight_penalty_coefficient*(r_weight/r_weight_median)
+        reward = self.time_penalty_coefficient*(r_time/abs(r_time_median))+self.weight_penalty_coefficient*(r_weight/abs(r_weight_median))
         
         self.done_episodes += 1
         print("Corresponding time reward: ",r_time, "    ", "Corresponding weight reward: ",r_weight)
