@@ -27,7 +27,7 @@ numberOfEpisodes = 10000
 
 belt = Belt(1)
 buffer = Buffer(2,3)
-pallet = Pallet(5)
+pallet = Pallet(4)
 agent = Agent(belt=belt,buffer=buffer,pallet=pallet, globalTime = globalTime)
 
 
@@ -35,7 +35,7 @@ deltaTStart = 0
 deltaTEnd = 2
 
 weightStart = 1
-weightEnd = 10
+weightEnd = 5
 
 exitFlag = 0
 

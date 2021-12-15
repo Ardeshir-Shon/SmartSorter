@@ -33,6 +33,13 @@ class Pallet():
     def getProducts(self):
         return self.products
     
+    def getTopProductIndex(self):
+        try:
+            self.products.index(0)
+        except:
+            return self.capacity-1
+        return self.products.index(0)-1 if self.products.index(0) != 0 else 0
+    
     def empty(self):
         self.products = self.capacity*[0] # considered zero for emty slots
         self.shipTime = -1 # means not shipped yet
