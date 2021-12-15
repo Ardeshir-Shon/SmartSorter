@@ -245,6 +245,12 @@ class Agent():
 
         r_time_median = np.nanmedian(self.historical_time_rewards)
         r_weight_median =np.nanmedian(self.historical_weight_rewards)
+        
+        if r_time_median == 0:
+            r_time_median = np.nanmean(self.historical_time_rewards)
+        if r_weight_median == 0:
+            r_weight_median = np.nanmean(self.historical_weight_rewards)
+        
         print('r_time:', r_time, 'normalized:', r_time/abs(r_time_median))
         print('r_weight: ', r_weight, 'normalized:', r_weight/abs(r_weight_median))
         print('r_time_median:', r_time_median, 'r_weight_median:', r_weight_median)
@@ -275,6 +281,12 @@ class Agent():
 
         r_time_median = np.nanmedian(self.historical_time_rewards)
         r_weight_median =np.nanmedian(self.historical_weight_rewards)
+
+        if r_time_median == 0:
+            r_time_median = np.nanmean(self.historical_time_rewards)
+        if r_weight_median == 0:
+            r_weight_median = np.nanmean(self.historical_weight_rewards)
+
         print('r_time:', r_time, 'normalized:', r_time/abs(r_time_median))
         print('r_weight: ', r_weight, 'normalized:', r_weight/abs(r_weight_median))
         print('r_time_median:', r_time_median, 'r_weight_median:', r_weight_median)
