@@ -268,7 +268,7 @@ class Agent():
         print('topProductIndex:', topProductIndex)
 
         r_weight = products[topProductIndex-1].getWeight() - products[topProductIndex].getWeight()
-        r_time =  self.globalTime.time - products[topProductIndex].getArrivalTime()
+        r_time =  -(self.globalTime.time - products[topProductIndex].getArrivalTime())
         
         #self.historical_time_rewards[self.done_episodes%1000] = r_time
         #self.historical_weight_rewards[self.done_episodes%1000] = r_weight
