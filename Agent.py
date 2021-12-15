@@ -122,6 +122,7 @@ class Agent():
     
     def getPossibleActions(self,state):
         possibleActions = []
+        # Belt
         if state[1] != 0: # if belt is not empty
             i = 3
             while i < 2 + 2*self.buffer.length*self.buffer.width:
@@ -130,14 +131,15 @@ class Agent():
                 else:
                     possibleActions.append(0)
                 i += 2
-            possibleActions.append(1)
+            possibleActions.append(1) # move belt to pallet
         else:
             i = 3
             while i < 2+ 2*self.buffer.length*self.buffer.width:
                 possibleActions.append(0)
                 i += 2
-            possibleActions.append(0)
+            possibleActions.append(0) # cannot move belt to pallet
         
+        # Buffer
         i=3
         while i < 2+ 2*self.buffer.length*self.buffer.width:
             if state[i] != 0: # If not empty
@@ -145,6 +147,7 @@ class Agent():
             else:
                 possibleActions.append(0) #cannot put in the pallet
             i += 2
+
         possibleActions.append(1) # for wait
         
         return possibleActions
@@ -253,7 +256,38 @@ class Agent():
         self.done_episodes += 1
         
         return reward
+
+    def calculateSingleReward(self):
+        topProductIndex = self.pallet.getTopProductIndex()
+
+        if topProductIndex == 0:
+            return 0
+
+        p = clone(self.pallet)
+        products = p.getProducts()
+        print(products)
+
+        topProductIndex = self.pallet.getTopProductIndex()
+        print('topProductIndex:', topProductIndex)
+
+        r_weight = products[topProductIndex-1].getWeight() - products[topProductIndex].getWeight()
+        r_time =  self.globalTime.time - products[topProductIndex].getArrivalTime()
         
+        #self.historical_time_rewards[self.done_episodes%1000] = r_time
+        #self.historical_weight_rewards[self.done_episodes%1000] = r_weight
+
+        r_time_median = np.nanmedian(self.historical_time_rewards)
+        r_weight_median =np.nanmedian(self.historical_weight_rewards)
+        print('r_time:', r_time, 'normalized:', r_time/abs(r_time_median))
+        print('r_weight: ', r_weight, 'normalized:', r_weight/abs(r_weight_median))
+        print('r_time_median:', r_time_median, 'r_weight_median:', r_weight_median)
+        reward = self.time_penalty_coefficient*(r_time/abs(r_time_median))+self.weight_penalty_coefficient*(r_weight/abs(r_weight_median))
+        
+        #self.done_episodes += 1 # used when updating historical rewards
+        
+        return reward
+
+
     def nextStateReward(self,action):
         actionRewardCoefficient = 0.3
         bufferCapacity = self.buffer.length*self.buffer.width
@@ -268,14 +302,14 @@ class Agent():
             if self.pallet.isReadyToShip():
                 reward = self.calculateReward()
             else:
-                reward = actionRewardCoefficient*self.calculateReward()
+                reward = actionRewardCoefficient*self.calculateSingleReward()
         elif action > bufferCapacity and action <= 2*bufferCapacity: # buffer to pallet
             self.moveBufferToPallet(int((action-bufferCapacity-1)/widthBuffer),(action-bufferCapacity-1)%widthBuffer)
             nextState = self.getStateFeatures()
             if self.pallet.isReadyToShip():
                 reward = self.calculateReward()
             else:
-                reward = actionRewardCoefficient*self.calculateReward()
+                reward = actionRewardCoefficient*self.calculateSingleReward()
         elif action == 2*bufferCapacity+1: # wait
             nextState = self.getStateFeatures()
             reward = 0

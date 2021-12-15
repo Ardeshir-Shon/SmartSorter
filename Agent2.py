@@ -253,6 +253,36 @@ class Agent():
         self.done_episodes += 1
         
         return reward
+
+    def calculateSingleReward(self):
+        topProductIndex = self.pallet.getTopProductIndex()
+
+        if topProductIndex == 0:
+            return 0
+
+        p = clone(self.pallet)
+        products = p.getProducts()
+        print(products)
+
+        topProductIndex = self.pallet.getTopProductIndex()
+        print('topProductIndex:', topProductIndex)
+
+        r_weight = products[topProductIndex-1].getWeight() - products[topProductIndex].getWeight()
+        r_time =  self.globalTime.time - products[topProductIndex].getArrivalTime()
+        
+        #self.historical_time_rewards[self.done_episodes%1000] = r_time
+        #self.historical_weight_rewards[self.done_episodes%1000] = r_weight
+
+        r_time_median = np.nanmedian(self.historical_time_rewards)
+        r_weight_median =np.nanmedian(self.historical_weight_rewards)
+        print('r_time:', r_time, 'normalized:', r_time/abs(r_time_median))
+        print('r_weight: ', r_weight, 'normalized:', r_weight/abs(r_weight_median))
+        print('r_time_median:', r_time_median, 'r_weight_median:', r_weight_median)
+        reward = self.time_penalty_coefficient*(r_time/abs(r_time_median))+self.weight_penalty_coefficient*(r_weight/abs(r_weight_median))
+        
+        #self.done_episodes += 1 # used when updating historical rewards
+        
+        return reward
         
     def nextStateReward(self,action):
         done =False
@@ -270,7 +300,7 @@ class Agent():
                 done = True
                 reward = self.calculateReward()
             else:
-                reward = actionRewardCoefficient*self.calculateReward()
+                reward = actionRewardCoefficient*self.calculateSingleReward()
         elif action > bufferCapacity and action <= 2*bufferCapacity: # buffer to pallet
             self.moveBufferToPallet(int((action-bufferCapacity-1)/widthBuffer),(action-bufferCapacity-1)%widthBuffer)
             nextState = self.getStateFeatures()
@@ -278,7 +308,7 @@ class Agent():
                 done = True
                 reward = self.calculateReward()
             else:
-                reward = actionRewardCoefficient*self.calculateReward()
+                reward = actionRewardCoefficient*self.calculateSingleReward()
         elif action == 2*bufferCapacity+1: # wait
             nextState = self.getStateFeatures()
             reward = 0
