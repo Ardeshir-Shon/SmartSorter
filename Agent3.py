@@ -1,5 +1,6 @@
 from matplotlib.pyplot import get_current_fig_manager, step
 import random
+import math
 
 from numpy.core.fromnumeric import product
 from numpy.lib.function_base import copy
@@ -33,9 +34,9 @@ from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 
 class Agent():
 
-    def __init__(self,belt:Belt,buffer:Buffer,pallet:Pallet,globalTime,capacity = 1024,
-            learning_rate = 1e-3,learn_counter=0,memory_counter = 0,batch_size = 256,gamma = 0.95,
-            update_count = 0, epsilon = 0.7,Q_network_evaluation=100, time_penalty_coefficient = 0, weight_penalty_coefficient = 1, actionAmount = 2):
+    def __init__(self,belt:Belt,buffer:Buffer,pallet:Pallet,globalTime,capacity = 2048,
+            learning_rate = 1e-3,learn_counter=0,memory_counter = 0,batch_size = 512,gamma = 0.95,
+            update_count = 0, epsilon = 0.6 ,Q_network_evaluation=100, time_penalty_coefficient = 0, weight_penalty_coefficient = 1, actionAmount = 2):
         
         self.belt = belt
         self.buffer = buffer
@@ -70,12 +71,16 @@ class Agent():
         self.memory = np.zeros((self.capacity, self.num_state_features *2 +2))
         self.tempTReward = 0
         self.tempWReward = 0
+        self.actionRewards = [np.nan]*1000
+        self.defaultActionReward = -2
+        self.actionTry = 0
+        self.topPIndex = -100
 
-        if os.path.isfile("./act_net.pth"):
+        if os.path.isfile("./act_net_done.pth"):
             print("loaded from existing models ...")
             self.target_net, self.act_net = Net(self.num_state_features,self.num_action), Net(self.num_state_features,self.num_action)
-            self.act_net.load_state_dict(torch.load("./act_net.pth"))
-            self.target_net.load_state_dict(torch.load("./act_net.pth"))
+            self.act_net.load_state_dict(torch.load("./act_net_done.pth"))
+            self.target_net.load_state_dict(torch.load("./act_net_done.pth"))
         else:
             print("start from random weights ...")
             self.target_net, self.act_net = Net(self.num_state_features,self.num_action), Net(self.num_state_features,self.num_action)
@@ -225,19 +230,24 @@ class Agent():
 
         topProductIndex = self.pallet.getTopProductIndex()
         
+        if topProductIndex <= 0:
+            return np.nanquantile(self.actionRewards,0.15) if not math.isnan(np.nanquantile(self.actionRewards,0.15)) else self.defaultActionReward
+
+        self.topPIndex = topProductIndex
         p = clone(self.pallet)
         products = p.getProducts()
         #print(products)
         gonnaShip = False
         if topProductIndex == self.pallet.capacity-1:
             gonnaShip = True
+            self.done_episodes += 1
             self.pallet.shipThePallet(globalTime=self.globalTime.time)
 
-        for i in range(topProductIndex):
+        for i in range(topProductIndex+1):
             r_time -= self.pallet.getShipTime() - products[i].getArrivalTime()
-        for i in range(topProductIndex-1):
+        for i in range(topProductIndex):
             top_weights = 0
-            for j in range(i+1,topProductIndex):
+            for j in range(i+1,topProductIndex+1):
                 top_weights += products[j].getWeight()
             r_weight += products[i].getWeight() - top_weights
         
@@ -258,30 +268,31 @@ class Agent():
         if r_weight_median == 0:
             r_weight_median = 1
         
-        print('r_time:', r_time, 'normalized:', r_time/abs(r_time_median))
-        print('r_weight: ', r_weight, 'normalized:', r_weight/abs(r_weight_median))
-        print('r_time_median:', r_time_median, 'r_weight_median:', r_weight_median)
+        # print('r_time:', r_time, 'normalized:', r_time/abs(r_time_median))
+        # print('r_weight: ', r_weight, 'normalized:', r_weight/abs(r_weight_median))
+        # print('r_time_median:', r_time_median, 'r_weight_median:', r_weight_median)
         reward = self.time_penalty_coefficient*(r_time/abs(r_time_median))+self.weight_penalty_coefficient*(r_weight/abs(r_weight_median))
 
-        self.tempTReward = r_time/abs(r_time_median)
-        self.tempWReward = r_weight/abs(r_weight_median)
+        self.tempTReward = r_time
+        self.tempWReward = r_weight
         
-        self.done_episodes += 1
-        
+        self.actionRewards[self.actionTry%len(self.actionRewards)] = reward
+        self.actionTry += 1
+
         return reward
 
     def calculateSingleReward(self):
         topProductIndex = self.pallet.getTopProductIndex()
 
-        if topProductIndex == 0:
-            return 0
+        if topProductIndex <= 0:
+            return np.nanquantile(self.actionRewards,0.15)
 
         p = clone(self.pallet)
         products = p.getProducts()
-        print(products)
+        # print(products)
 
         topProductIndex = self.pallet.getTopProductIndex()
-        print('topProductIndex:', topProductIndex)
+        # print('topProductIndex:', topProductIndex)
 
         r_weight = products[topProductIndex-1].getWeight() - products[topProductIndex].getWeight()
         r_time =  self.globalTime.time - products[topProductIndex].getArrivalTime()
@@ -302,13 +313,13 @@ class Agent():
         if r_weight_median == 0:
             r_weight_median = 1
 
-        print('r_time:', r_time, 'normalized:', r_time/abs(r_time_median))
-        print('r_weight: ', r_weight, 'normalized:', r_weight/abs(r_weight_median))
-        print('r_time_median:', r_time_median, 'r_weight_median:', r_weight_median)
+        # print('r_time:', r_time, 'normalized:', r_time/abs(r_time_median))
+        # print('r_weight: ', r_weight, 'normalized:', r_weight/abs(r_weight_median))
+        # print('r_time_median:', r_time_median, 'r_weight_median:', r_weight_median)
         reward = self.time_penalty_coefficient*(r_time/abs(r_time_median))+self.weight_penalty_coefficient*(r_weight/abs(r_weight_median))
         
-        self.tempTReward = r_time/abs(r_time_median)
-        self.tempWReward = r_weight/abs(r_weight_median)
+        self.tempTReward = r_time
+        self.tempWReward = r_weight
         
         #self.done_episodes += 1 # used when updating historical rewards
         
@@ -317,12 +328,15 @@ class Agent():
     def nextStateReward(self,action):
         done =False
         actionRewardCoefficient = 1
+        
+        normalReward = np.nanquantile(self.actionRewards,0.15) if not math.isnan(np.nanquantile(self.actionRewards,0.15)) else self.defaultActionReward
+
         bufferCapacity = self.buffer.length*self.buffer.width
         widthBuffer = self.buffer.length
         if action < bufferCapacity: # belt to buffer
             self.moveBeltToBuffer(int(action/widthBuffer),action%widthBuffer)
             nextState = self.getStateFeatures()
-            reward = 0
+            reward = normalReward
         elif action == bufferCapacity: # belt to pallet
             self.moveBeltToPallet()
             nextState = self.getStateFeatures()
@@ -330,7 +344,7 @@ class Agent():
                 done = True
                 reward = self.calculateReward()
             else:
-                reward = actionRewardCoefficient*self.calculateSingleReward()
+                reward = actionRewardCoefficient*self.calculateReward()
         elif action > bufferCapacity and action <= 2*bufferCapacity: # buffer to pallet
             self.moveBufferToPallet(int((action-bufferCapacity-1)/widthBuffer),(action-bufferCapacity-1)%widthBuffer)
             nextState = self.getStateFeatures()
@@ -338,11 +352,12 @@ class Agent():
                 done = True
                 reward = self.calculateReward()
             else:
-                reward = actionRewardCoefficient*self.calculateSingleReward()
+                reward = actionRewardCoefficient*self.calculateReward()
         elif action == 2*bufferCapacity+1: # wait
             nextState = self.getStateFeatures()
-            reward = 0
-        return nextState,(-1)*reward, done
+            reward = normalReward
+        
+        return nextState,reward, done
             
     
     def update(self):
@@ -371,9 +386,8 @@ class Agent():
 
     def learn(self,episode):
         # for episode in range(self.num_episodes):
-        state = self.getStateFeatures()
         
-        #self.epsilon = self.epsilon * 1.0001 if self.epsilon < 1 else 1
+        self.epsilon = self.epsilon * 1.00002 if self.epsilon < 0.95 else 0.95
     
         bufferCapacity = self.buffer.length*self.buffer.width # temp for logging
         epsiodeDuration = random.randint((self.buffer.width*self.buffer.length+self.pallet.capacity+self.belt.capacity)*self.actionAmount+64,256)
@@ -388,11 +402,16 @@ class Agent():
         for t in range(epsiodeDuration):
             time.sleep(0.02)
             
+            state = self.getStateFeatures()
+
             if self.globalTime.time % self.actionAmount == 0:
                 myfile.write("\nState: "+str(state)+"\n")
                 myfile.write("Possible Actions: "+str(self.getPossibleActions(state))+"\n")
                 myfile.write("New Action "+ str(steps)+"/"+str(int(epsiodeDuration/self.actionAmount)) +" at time: "+str(self.globalTime.time)+"\n")
                 steps += 1
+                myfile.write("Belt Before: "+str(self.belt.products)+"\n")
+                myfile.write("Buffer Before: "+str(self.buffer.slots)+"\n")
+                myfile.write("Pallet Before: "+str(self.pallet.products)+"\n")
                 action = self.choose_action(state)
                 next_state, reward , done = self.nextStateReward(action)
                 self.store_trans(state, action, reward, next_state)
@@ -409,6 +428,10 @@ class Agent():
 
                 myfile.write("Selected Action: "+str(selectedAction)+" : "+str(action)+"\n")
                 
+                normalReward = np.nanquantile(self.actionRewards,0.15) if not math.isnan(np.nanquantile(self.actionRewards,0.15)) else self.defaultActionReward
+                # myfile.writelines("reward list recently: "+ str(self.actionRewards)+"\n")
+                myfile.writelines("normalRewardIs: "+ str(normalReward)+"\n")
+
                 r_time_median = np.nanmedian(self.historical_time_rewards)
                 r_weight_median =np.nanmedian(self.historical_weight_rewards)
 
@@ -422,12 +445,12 @@ class Agent():
                 if r_weight_median == 0:
                     r_weight_median = 1
 
-                myfile.write("r_time_median: "+str(r_time_median)+" r_weight_median: "+str(r_weight_median)+"\n")
+                # myfile.write("r_time_median: "+str(r_time_median)+" r_weight_median: "+str(r_weight_median)+"\n")
                 myfile.write("r_time: "+str(self.tempTReward)+" r_weight: "+str(self.tempWReward)+"\n")
                 myfile.write("Action Reward: "+str(reward)+"\n")
-                myfile.write("Belt: "+str(self.belt.products)+"\n")
-                myfile.write("Buffer: "+str(self.buffer.slots)+"\n")
-                myfile.write("Pallet: "+str(self.pallet.products)+"\n")
+                myfile.write("Belt After: "+str(self.belt.products)+"\n")
+                myfile.write("Buffer After: "+str(self.buffer.slots)+"\n")
+                myfile.write("Pallet After: "+str(self.pallet.products)+"\n")
                 myfile.flush()
 
                 if self.memory_counter >= self.capacity:
