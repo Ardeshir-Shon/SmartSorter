@@ -9,7 +9,7 @@ from Product import Product
 from Belt import Belt
 from Buffer import Buffer
 from Pallet import Pallet
-from Net2 import Net
+from NetStable import Net
 from copy import copy as clone
 
 from collections import defaultdict
@@ -36,7 +36,7 @@ class Agent():
 
     def __init__(self,belt:Belt,buffer:Buffer,pallet:Pallet,globalTime,capacity = 2048,
             learning_rate = 1e-3,learn_counter=0,memory_counter = 0,batch_size = 512,gamma = 0.95,
-            update_count = 0, epsilon = 0.6 ,Q_network_evaluation=100, time_penalty_coefficient = 0, weight_penalty_coefficient = 1, actionAmount = 2):
+            update_count = 0, epsilon = 0.6 ,Q_network_evaluation=150, time_penalty_coefficient = 0, weight_penalty_coefficient = 1, actionAmount = 2):
         
         self.belt = belt
         self.buffer = buffer
@@ -55,6 +55,8 @@ class Agent():
         self.historical_weight_rewards = [np.nan]*1000
         self.historical_time_rewards[0] = 1
         self.historical_weight_rewards[0] = 1
+        self.lastRWeight = 0
+        self.finalPallet = []
 
         self.capacity = capacity
         self.learning_rate = learning_rate
@@ -72,9 +74,11 @@ class Agent():
         self.tempTReward = 0
         self.tempWReward = 0
         self.actionRewards = [np.nan]*1000
-        self.defaultActionReward = -2
+        self.defaultActionReward = -4
         self.actionTry = 0
         self.topPIndex = -100
+        self.isGreedy = True
+        self.actionValues = []
 
         if os.path.isfile("./act_net_done.pth"):
             print("loaded from existing models ...")
@@ -96,7 +100,8 @@ class Agent():
         if len(products) != 0:
             for p in products:
                 if isinstance(p,Product):
-                        features.append(p.getArrivalTime()-self.globalTime.time)
+                        # features.append(p.getArrivalTime()-self.globalTime.time)
+                        features.append(0)
                         features.append(p.getWeight())
                 else:
                     features.append(0)
@@ -110,7 +115,8 @@ class Agent():
                 p = self.buffer.getSlotProduct(i,j)
                 
                 if isinstance(p,Product):
-                    features.append(p.getArrivalTime()-self.globalTime.time)
+                    # features.append(p.getArrivalTime()-self.globalTime.time)
+                    features.append(0)
                     features.append(p.getWeight())
                 else:
                     features.append(0)
@@ -119,7 +125,8 @@ class Agent():
         products = self.pallet.getProducts()
         for p in products:
             if isinstance(p,Product):
-                    features.append(p.getArrivalTime()-self.globalTime.time)
+                    # features.append(p.getArrivalTime()-self.globalTime.time)
+                    features.append(0)
                     features.append(p.getWeight())
             else:
                 features.append(0)
@@ -174,7 +181,10 @@ class Agent():
                 if possiblesActions[i]==0:
                     action_value[0,i] = -np.inf
             action = torch.argmax(action_value).data.numpy()
+            self.isGreedy = True
+            self.actionValues = action_value
         else:
+            self.isGreedy = False
             action = random.choice(np.argwhere(np.array(possiblesActions)==1))[0]
             # action = np.random.randint(0,self.num_action)
         return action
@@ -240,6 +250,7 @@ class Agent():
         gonnaShip = False
         if topProductIndex == self.pallet.capacity-1:
             gonnaShip = True
+            self.lastPallet = clone(products)
             self.done_episodes += 1
             self.pallet.shipThePallet(globalTime=self.globalTime.time)
 
@@ -275,7 +286,12 @@ class Agent():
 
         self.tempTReward = r_time
         self.tempWReward = r_weight
+
+        self.lastRWeight = r_weight
         
+        if reward > 0:
+            reward = reward * 3
+
         self.actionRewards[self.actionTry%len(self.actionRewards)] = reward
         self.actionTry += 1
 
@@ -355,7 +371,10 @@ class Agent():
                 reward = actionRewardCoefficient*self.calculateReward()
         elif action == 2*bufferCapacity+1: # wait
             nextState = self.getStateFeatures()
-            reward = normalReward
+            if self.belt.isFull():
+                reward = normalReward - 3 # penalty for waiting with full belt
+            else:
+                reward = normalReward
         
         return nextState,reward, done
             
@@ -377,6 +396,13 @@ class Agent():
         q_eval = self.act_net(batch_state).gather(1, batch_action)
         q_next = self.target_net(batch_next_state).detach()
         q_target = batch_reward + self.gamma*q_next.max(1)[0].view(self.batch_size, 1)
+        
+        ## Compute L1 and L2 loss component
+        # parameters = []
+        # for parameter in self.act_net.parameters():
+        #     parameters.append(parameter.view(-1))
+        # l1 = 0.03 * self.act_net.compute_l1_loss(torch.cat(parameters))
+        ## l2 = l2_weight * mlp.compute_l2_loss(torch.cat(parameters))
 
         loss = self.loss(q_eval, q_target)
         self.optimizer.zero_grad()
@@ -408,14 +434,14 @@ class Agent():
                 myfile.write("\nState: "+str(state)+"\n")
                 myfile.write("Possible Actions: "+str(self.getPossibleActions(state))+"\n")
                 myfile.write("New Action "+ str(steps)+"/"+str(int(epsiodeDuration/self.actionAmount)) +" at time: "+str(self.globalTime.time)+"\n")
+                
                 steps += 1
+                
                 myfile.write("Belt Before: "+str(self.belt.products)+"\n")
                 myfile.write("Buffer Before: "+str(self.buffer.slots)+"\n")
                 myfile.write("Pallet Before: "+str(self.pallet.products)+"\n")
+                
                 action = self.choose_action(state)
-                next_state, reward , done = self.nextStateReward(action)
-                self.store_trans(state, action, reward, next_state)
-                episodeReward += reward
                 
                 if action < bufferCapacity:
                     selectedAction = 'Belt to Buffer'
@@ -427,6 +453,12 @@ class Agent():
                     selectedAction = 'Wait'
 
                 myfile.write("Selected Action: "+str(selectedAction)+" : "+str(action)+"\n")
+                myfile.write("isGreedy: "+ str(self.isGreedy)+"\n")
+                myfile.write("ActionValues: "+ str(self.actionValues)+"\n")
+                
+                next_state, reward , done = self.nextStateReward(action)
+                self.store_trans(state, action, reward, next_state)
+                episodeReward += reward
                 
                 normalReward = np.nanquantile(self.actionRewards,0.15) if not math.isnan(np.nanquantile(self.actionRewards,0.15)) else self.defaultActionReward
                 # myfile.writelines("reward list recently: "+ str(self.actionRewards)+"\n")
@@ -458,6 +490,7 @@ class Agent():
                     # if t == epsiodeDuration-1:
                     #     print("episode {}, the reward is {}".format(episode, round(reward, 3)))
                 if done or t == epsiodeDuration-1:
+                    myfile.write("Shipped Pallet: "+str(self.lastPallet)+"\n")
                     break
                 state = next_state
             self.globalTime.increaseTime()

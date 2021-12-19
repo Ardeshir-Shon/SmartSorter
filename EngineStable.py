@@ -1,5 +1,5 @@
 import torch
-from Agent2 import Agent
+from AgentStable import Agent
 from Product import Product
 from Belt import Belt
 from Buffer import Buffer
@@ -8,6 +8,7 @@ from Pallet import Pallet
 import random
 from matplotlib import pyplot as plt
 import numpy as np
+import math
 
 import threading
 import time
@@ -23,7 +24,7 @@ class Time():
 
 globalTime = Time(0)
 
-numberOfEpisodes = 35000
+numberOfEpisodes = 100000
 
 belt = Belt(1)
 buffer = Buffer(2,3)
@@ -35,7 +36,7 @@ deltaTStart = 0
 deltaTEnd = 2
 
 weightStart = 1
-weightEnd = 5
+weightEnd = 8
 
 exitFlag = 0
 
@@ -67,10 +68,11 @@ factory = Conveyor(1, "Belt-Thread")
 factory.start()
 
 with open("log.csv", "a") as log:
-   log.write("Episode,Episode Reward,Episode Steps\n")
+   log.write("Episode,Episode Reward,Episode Steps,Normalized Episode Reward,Epsilon,Final Pallet Reward,Quartile Reward Per Step,Shipped Pallet\n")
 
 while episode <= numberOfEpisodes:
    print("-------------")
+   
    time.sleep(0.05)
    
    if episode >= numberOfEpisodes:
@@ -78,14 +80,23 @@ while episode <= numberOfEpisodes:
    
    ### agent do action here (if needed!)
    agent.learn(episode)
+   
    torch.save(agent.act_net.state_dict(), "./act_net_done.pth")
-   episode += 1
+   
+   normalReward = np.nanquantile(agent.actionRewards,0.15) if not math.isnan(np.nanquantile(agent.actionRewards,0.15)) else agent.defaultActionReward
+   
    print("Episode: ",episode)
    print("Total reward: ", agent.episodeRewards[-1]/agent.episodeSteps[-1])
+   print("Quartile Reward: ",normalReward)
+   print("Final Pallet Reward: ", agent.lastRWeight)
    print("----------------------")
+   
    with open("log.csv", "a") as log:
       writer = csv.writer(log, delimiter=',' , lineterminator='\n')
-      writer.writerow([episode, agent.episodeRewards[-1], agent.episodeSteps[-1], agent.episodeRewards[-1]/agent.episodeSteps[-1], agent.epsilon])
+      writer.writerow([episode, agent.episodeRewards[-1], agent.episodeSteps[-1], agent.episodeRewards[-1]/agent.episodeSteps[-1], agent.epsilon,agent.lastRWeight,normalReward,agent.lastPallet])
+   
+   episode += 1
+   
    # belt.empty()
    # buffer.empty()
    # pallet.empty()
@@ -104,6 +115,5 @@ plt.ylabel("Average Reward")
 plt.xlabel("Episodes")
 plt.legend('Average Reward')
 plt.savefig("rewards.png", dpi=300)
-# print("Average Reward: ", len(average_rewards))
 
 
