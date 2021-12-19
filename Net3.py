@@ -11,14 +11,16 @@ from tensorboardX import SummaryWriter
 class Net(nn.Module):
     def __init__(self,num_state,num_action):
         super(Net, self).__init__()
-        self.fc1 = nn.Linear(num_state, max(int(2*num_state),int((1.5*num_state)+num_action)))
-        self.fc2 = nn.Linear(max(int(2*num_state),int((1.5*num_state)+num_action)), min(int(2*num_state),int((1.1*num_state)+num_action)))
-        self.fc3 = nn.Linear(min(int(2*num_state),int((1.1*num_state)+num_action)), int(1.5*num_action))
-        self.fc4 = nn.Linear(int(1.5*num_action), num_action)
+        self.fc1 = nn.Linear(num_state, 512)
+        self.fc2 = nn.Linear(512, 512)
+        self.fc3 = nn.Linear(512, 256)
+        self.fc4 = nn.Linear(256, 256)
+        self.fc5 = nn.Linear(256, num_action)
 
     def forward(self, x):
         x1 = F.tanh(self.fc1(x))
-        x2 = F.sigmoid(self.fc2(x1))
-        x3 = F.relu(self.fc3(x2))
-        action_prob = self.fc4(x3)
+        x2 = F.tanh(self.fc2(x1))
+        x3 = F.sigmoid(self.fc3(x2))
+        x4 = F.relu(self.fc4(x3))
+        action_prob = self.fc5(x4)
         return action_prob

@@ -187,6 +187,37 @@ class Agent():
         product = self.belt.grabProduct()
         self.buffer.moveToSlot(product=product,x=destX,y=destY)
 
+
+    def simpleReward(self):
+        p = clone(self.pallet)
+        products = p.getProducts()
+
+        r_time = 0
+        r_weight = 0
+        for i in range(p.capacity):
+            r_time -= self.pallet.getShipTime() - products[i].getArrivalTime()
+        for i in range(p.capacity-1):
+            top_weights = 0
+            for j in range(i+1,p.capacity):
+                top_weights += products[j].getWeight()
+            r_weight += products[i].getWeight() - top_weights
+
+        reward = r_time + r_weight
+
+        return reward
+
+    def simpleSingleReward(self):
+        p = clone(self.pallet)
+        products = p.getProducts()
+        topProductIndex = p.getTopProductIndex()
+
+        r_weight = products[topProductIndex-1].getWeight() - products[topProductIndex].getWeight()
+        r_time =  self.globalTime.time - products[topProductIndex].getArrivalTime()
+
+        reward = r_time + r_weight
+
+        return reward
+
     def palletReward(self):
         r_time = 0
         r_weight = 0
