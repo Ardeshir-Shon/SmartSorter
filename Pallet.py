@@ -38,7 +38,7 @@ class Pallet():
             self.products.index(0)
         except:
             return self.capacity-1
-        return self.products.index(0)-1 if self.products.index(0) != 0 else 0
+        return self.products.index(0)-1 if self.products.index(0) != 0 else -1
     
     def empty(self):
         self.products = self.capacity*[0] # considered zero for emty slots

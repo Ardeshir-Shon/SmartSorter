@@ -35,7 +35,7 @@ class Agent():
 
     def __init__(self,belt:Belt,buffer:Buffer,pallet:Pallet,globalTime,capacity = 1024,
             learning_rate = 1e-3,learn_counter=0,memory_counter = 0,batch_size = 256,gamma = 0.95,
-            update_count = 0, epsilon = 0.7,Q_network_evaluation=100, time_penalty_coefficient = 1, weight_penalty_coefficient = 1, actionAmount = 2):
+            update_count = 0, epsilon = 0.7,Q_network_evaluation=100, time_penalty_coefficient = 0, weight_penalty_coefficient = 1, actionAmount = 2):
         
         self.belt = belt
         self.buffer = buffer
@@ -383,7 +383,7 @@ class Agent():
         elif action == 2*bufferCapacity+1: # wait
             nextState = self.getStateFeatures()
             reward = 0
-        return nextState,reward, done
+        return nextState,(-1)*reward, done
             
     
     def update(self):

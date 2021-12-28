@@ -6,7 +6,7 @@ class Product():
         self.shipped = False
     
     def __repr__(self) -> str:
-        return "|Weight:"+str(self.getWeight())+" Arrival Time: "+str(self.getArrivalTime())+"|"
+        return "|Weight:"+str(self.getWeight())+"|"
 
     def setShipped(self):
         self.shipped = True
