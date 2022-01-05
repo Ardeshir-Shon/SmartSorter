@@ -68,7 +68,7 @@ factory = Conveyor(1, "Belt-Thread")
 factory.start()
 
 with open("log.csv", "a") as log:
-   log.write("Episode,Episode Reward,Episode Steps,Normalized Episode Reward,Epsilon,Final Pallet Reward,Shipped Pallet\n")
+   log.write("Episode,Episode Reward,Episode Steps,Normalized Episode Reward,Epsilon,Shipped Pallet\n")
 
 while episode <= numberOfEpisodes:
    print("-------------")
@@ -89,7 +89,7 @@ while episode <= numberOfEpisodes:
    
    with open("log.csv", "a") as log:
       writer = csv.writer(log, delimiter=',' , lineterminator='\n')
-      writer.writerow([episode, agent.episodeRewards[-1], agent.episodeSteps[-1], agent.episodeRewards[-1]/agent.episodeSteps[-1], agent.epsilon,agent.tempWReward,agent.lastPallet])
+      writer.writerow([episode, agent.episodeRewards[-1], agent.episodeSteps[-1], agent.episodeRewards[-1]/agent.episodeSteps[-1], agent.epsilon, agent.lastPallet])
    
    episode += 1
    
