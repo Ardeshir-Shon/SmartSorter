@@ -64,7 +64,6 @@ class Agent():
         self.episodeRewards = []
         self.episodeSteps = []
         self.memory = np.zeros((self.capacity, self.num_state_features * 2 + 2))
-        self.tempWReward = 0
         self.isGreedy = True # strictly for logging
 
         if os.path.isfile("./net.pth"):
@@ -209,8 +208,6 @@ class Agent():
             r_weight += products[i].getWeight() - top_weights
 
         reward = r_weight
-        self.tempWReward = r_weight
-
         return reward
 
     def calculateSingleReward(self):
@@ -224,7 +221,6 @@ class Agent():
         r_weight = products[topProductIndex-1].getWeight() - products[topProductIndex].getWeight()
         
         reward = r_weight
-        self.tempWReward = r_weight
         return reward
         
     def nextStateReward(self,action):

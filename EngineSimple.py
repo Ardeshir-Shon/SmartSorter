@@ -84,8 +84,7 @@ while episode <= numberOfEpisodes:
    torch.save(agent.act_net.state_dict(), "./net.pth")
   
    print("Episode: ",episode)
-   print("Total reward: ", )
-   print("Final Pallet Reward: ", agent.tempWReward)
+   print("Episode Reward: ", agent.episodeRewards[-1])
    print("----------------------")
    
    with open("log.csv", "a") as log:
